@@ -4,20 +4,30 @@ from rest_framework.response import Response
 import requests
 from rest_framework import serializers, exceptions
 
-from typing import Type
+from typing import Type, Optional
 
 
 def checked_nested_keys(object: dict, keys: list[str]):
+    key = None
 
-    key = keys[0]
-    if key in object:
-        if isinstance(object[key], dict):
-            return checked_nested_keys(object[key], keys[1:])
-        elif len(keys) == 1:
-            return True
+    try:
+        if len(keys) == 0:
+            raise ValueError("Массив вложенных свойств в данных не должен быть пустым")
+
+        key = keys[0]
+
+        if key in object:
+
+            if isinstance(object[key], dict):
+                return checked_nested_keys(object[key], keys[1:])
+            elif len(keys) == 1:
+                return True
+            else:
+                return False
         else:
             return False
-    else:
+    except ValueError as error:
+        print(error)
         return False
 
 
@@ -31,40 +41,31 @@ def depascalize_list_object(list_object: list[dict]):
 def get_response(
     response: requests.Response,
     nested_keys: list[str],
-    serializer: Type[serializers.Serializer],
+    serializer: Optional[Type[serializers.Serializer]] = None,
 ):
-    try:
-        if response.status_code == 200:
-            result_data = response.json()
 
-            if checked_nested_keys(object=result_data, keys=nested_keys):
+    if response.status_code == 200:
+        result_data = response.json()
 
-                raw_data = result_data
+        if checked_nested_keys(object=result_data, keys=nested_keys):
 
-                for key in nested_keys:
-                    raw_data = raw_data[key]
+            raw_data = result_data
 
-                formatted_data = depascalize_list_object(raw_data)
-                # print("formatted_data", formatted_data)
-                serialized_data = serializer(data=formatted_data, many=True)
-                if serialized_data.is_valid():
+            for key in nested_keys:
+                raw_data = raw_data[key]
 
-                    return Response(
-                        data=serialized_data.data, status=response.status_code
-                    )
+            if serializer is None:
+                return Response(data=raw_data, status=response.status_code)
 
-                # print("serialized_data.errors", serialized_data.errors)
-                return Response(
-                    data=serialized_data.errors, status=response.status_code
-                )
-        # print("response", response)
-        return Response(data=[], status=response.status_code)
-    except exceptions.ValidationError:
+            formatted_data = depascalize_list_object(raw_data)
 
-        return Response(data=response, status=response.status_code)
-    except Exception:
+            serialized_data = serializer(data=formatted_data, many=True)
+            if serialized_data.is_valid():
 
-        return Response(data=response, status=response.status_code)
+                return Response(data=serialized_data.data, status=response.status_code)
+
+            return Response(data=serialized_data.errors, status=response.status_code)
+    return Response(data=[], status=response.status_code)
 
 
 def create_query_params(query_params: dict[str, str]) -> str:

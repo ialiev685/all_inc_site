@@ -14,7 +14,6 @@ from .serializers import (
     HotelsSerializer,
     TourOperatorsSerializer,
 )
-from rest_framework import serializers
 
 
 # Create your views here.
@@ -169,4 +168,30 @@ def get_tour_operators(request: Request):
         response=response,
         nested_keys=["GetTourOperatorsResult", "Data"],
         serializer=TourOperatorsSerializer,
+    )
+
+
+# даты вылета для выбранного города.
+@api_view(["GET"])
+def get_tour_dates(request: Request):
+    """
+    параметр ?dptCityId = id города вылета из представления get_departCities
+    параметр ?countryId = id страны из представления get_all_countries
+    параметр ?resorts = ids идентификаторы (через запятую) страны из представления get_resorts
+    параметр ?sources = ids идентификаторы (через запятую) туроператоров из представления get_tour_operators
+    доступные даты тура
+    """
+
+    query_config = {
+        "dptCityId": request.query_params.get("dptCityId", None),
+        "countryId": request.query_params.get("countryId", None),
+        "resorts": request.query_params.get("resorts", None),
+    }
+
+    query_params = create_query_params(query_config)
+    response = requests.get(f"{API}/GetTourDates{query_params}")
+
+    return get_response(
+        response=response,
+        nested_keys=["GetTourDatesResult", "Data", "dates"],
     )

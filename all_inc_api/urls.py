@@ -8,4 +8,5 @@ urlpatterns = [
     path("hotel-categories/", views.get_hotel_categories),
     path("hotels/", views.get_hotels),
     path("tour-operators/", views.get_tour_operators),
+    path("tour-dates/", views.get_tour_dates),
 ]
